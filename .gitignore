@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Ruff-generated files
+.ruff-cache
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# User uploads (stored on the server, not in git)
+static/avatars/*
+static/covers/*
+static/files/*
+!static/avatars/default.png
+!static/covers/default.png
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
