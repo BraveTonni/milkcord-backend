@@ -1,0 +1,3 @@
+from src.ws.connection_manager import WSConnectionManager
+
+ws_manager = WSConnectionManager()
