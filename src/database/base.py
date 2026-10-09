@@ -8,7 +8,7 @@ from .models.base import Base
 # Создаём движок БД
 engine = create_async_engine(
     url=settings.DB_URI,
-    echo=True,
+    echo=settings.SQL_ECHO,
     pool_size=10,
     max_overflow=5
 )
