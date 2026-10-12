@@ -1,44 +1,83 @@
-import os
-
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
-
-from fastapi.routing import APIRouter
-
-from sqlalchemy import text, select
-
-from src.schemas.users import UserResponse
-from src.schemas.response import ErrorResponse
-from src.schemas.users import UserSettingsUpdate
-from src.database.models.users import UserBase
-from src.utils import crypto
+from uuid import uuid4
 
 from fastapi import Request, Depends, UploadFile, File
 from fastapi.responses import FileResponse
-from datetime import datetime
-
+from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
+from src.database.crud import users as users_crud
+from src.database.crud import items as items_crud
+from src.database.models.users import UserBase
+from src.database.session import get_session
+from src.schemas.response import ErrorResponse
 from src.schemas.users import (
     UserLogin,
     UserSignUp,
     UserResponse,
     UserBioUpdate,
     UserPublicResponse,
+    UserSettingsUpdate,
 )
-from src.schemas.response import ErrorResponse
-
-from src.database.models.users import UserBase
-
-from src.database.crud import users as users_crud
-from src.database.crud import items as items_crud
-
-from src.database.session import get_session
-
 from src.utils import crypto
 
-from src.core.config import settings
-
 router = APIRouter(prefix="/users", tags=["Users"])
+
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+IMAGE_MEDIA_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+
+
+def _serve_image(filename: str | None, subdir: str, default_name: str) -> FileResponse:
+    """Отдаёт файл из static/<subdir> либо дефолтную картинку.
+
+    Запрашиваемый путь резолвится и обязан остаться внутри поддиректории,
+    иначе отдаётся картинка по умолчанию (защита от path traversal).
+    """
+    root = (settings.ROOT_DIR / "static" / subdir).resolve()
+
+    if filename:
+        candidate = (settings.ROOT_DIR / filename.lstrip("/")).resolve()
+        if candidate.is_relative_to(root) and candidate.is_file():
+            media_type = IMAGE_MEDIA_TYPES.get(
+                candidate.suffix.lower(), "application/octet-stream"
+            )
+            return FileResponse(candidate, media_type=media_type)
+
+    return FileResponse(root / default_name, media_type="image/png")
+
+
+async def _save_profile_image(
+    file: UploadFile, user_id: int, subdir: str
+) -> str | ErrorResponse:
+    """Валидирует и сохраняет аватар/обложку, возвращает имя файла или ошибку."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        return ErrorResponse(error="Можно загружать только изображения")
+
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        return ErrorResponse(error="Недопустимый формат изображения")
+
+    content = await file.read()
+    if len(content) > settings.MAX_UPLOAD_SIZE:
+        return ErrorResponse(error="Файл слишком большой")
+
+    directory = settings.static_path(subdir)
+    directory.mkdir(parents=True, exist_ok=True)
+
+    # Имя формируем сами: имя файла от клиента не участвует в пути
+    name = f"{user_id}_{int(datetime.now().timestamp())}_{uuid4().hex}{extension}"
+    (directory / name).write_bytes(content)
+
+    return name
 
 
 @router.get("/me")
@@ -53,33 +92,19 @@ async def me(
 
 
 @router.get("/avatar")
-async def get_avatar(filename: str):
+async def get_avatar(filename: str | None = None) -> FileResponse:
     """
     Возвращает файл аватара из статической директории.
     """
-    file_path = os.path.join(settings.ROOT_DIR, filename.lstrip("/"))
-
-    # Проверяем, существует ли файл
-    if not os.path.exists(file_path) or not filename:
-        default_path = os.path.join(settings.ROOT_DIR, "static/avatars/default.png")
-        return FileResponse(default_path, media_type="image/jpeg")
-
-    return FileResponse(file_path, media_type="image/jpeg")
+    return _serve_image(filename, "avatars", "default.png")
 
 
 @router.get("/cover")
-async def get_cover(filename: str):
+async def get_cover(filename: str | None = None) -> FileResponse:
     """
     Возвращает файл обложки из статической директории.
     """
-    file_path = os.path.join(settings.ROOT_DIR, filename.lstrip("/"))
-
-    # Проверяем, существует ли файл
-    if not os.path.exists(file_path) or not filename:
-        default_path = os.path.join(settings.ROOT_DIR, "static/covers/default.png")
-        return FileResponse(default_path, media_type="image/jpeg")
-
-    return FileResponse(file_path, media_type="image/jpeg")
+    return _serve_image(filename, "covers", "default.png")
 
 
 @router.get("/profile/{identifier}")
@@ -166,26 +191,12 @@ async def upload_avatar(
     if not user:
         return ErrorResponse(error="Пользователь не найден")
 
-    # Проверяем тип файла
-    if not file.content_type.startswith("image/"):
-        return ErrorResponse(error="Можно загружать только изображения")
+    name = await _save_profile_image(file, user.id, "avatars")
+    if isinstance(name, ErrorResponse):
+        return name
 
-    # Создаём папку, если нет
-    os.makedirs(settings.AVATAR_DIR, exist_ok=True)
+    avatar_url = f"/static/avatars/{name}"
 
-    # Генерируем уникальное имя файла
-    filename = f"{user.id}_{int(datetime.now().timestamp())}_{file.filename}"
-    file_path = os.path.join(settings.AVATAR_DIR, filename)
-
-    # Сохраняем файл
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-
-    # Формируем URL для фронтенда
-    avatar_url = f"/{file_path}"
-
-    # Обновляем пользователя
     updated_user = await users_crud.update_user_avatar(session, user, avatar_url)
 
     return UserResponse(user=updated_user)
@@ -201,26 +212,12 @@ async def upload_cover(
     if not user:
         return ErrorResponse(error="Пользователь не найден")
 
-    # Проверяем тип файла
-    if not file.content_type.startswith("image/"):
-        return ErrorResponse(error="Можно загружать только изображения")
+    name = await _save_profile_image(file, user.id, "covers")
+    if isinstance(name, ErrorResponse):
+        return name
 
-    # Создаём папку, если нет
-    os.makedirs(settings.COVER_DIR, exist_ok=True)
+    cover_url = f"/static/covers/{name}"
 
-    # Генерируем уникальное имя файла
-    filename = f"{user.id}_{int(datetime.now().timestamp())}_{file.filename}"
-    file_path = os.path.join(settings.COVER_DIR, filename)
-
-    # Сохраняем файл
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-
-    # Формируем URL для фронтенда
-    cover_url = f"/{file_path}"
-
-    # Обновляем пользователя
     updated_user = await users_crud.update_user_cover(session, user, cover_url)
 
     return UserResponse(user=updated_user)

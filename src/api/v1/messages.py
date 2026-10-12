@@ -25,6 +25,8 @@ from src.schemas.response import ErrorResponse
 from src.schemas.messages import MessageCreate, MessageSticker, MessageKind
 
 from src.core.ws_manager import ws_manager
+from src.core.config import settings
+from src.utils.helpers.files import FilesHelper
 from src.utils.helpers.paths import PathHelper
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
@@ -245,6 +247,9 @@ async def send_file_message(
     if not files:
         return ErrorResponse(error="Файлы отсутствуют")
 
+    if any(f.size and f.size > settings.MAX_UPLOAD_SIZE for f in files):
+        return ErrorResponse(error="Файл слишком большой")
+
     user = await users_crud.get_user_by_access_token(session, access_token)
     if not user:
         return ErrorResponse(error="Пользователь не найден")
@@ -347,9 +352,9 @@ async def get_message_file(
     return FileResponse(
         path=str(resolved_path),
         filename=msg_file.orig_name,
+        media_type=FilesHelper.media_type_for(resolved_path),
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
-            "Access-Control-Allow-Origin": "*",
         },
     )
 

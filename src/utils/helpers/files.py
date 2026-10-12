@@ -11,6 +11,29 @@ from .paths import PathHelper
 class FilesHelper:
     """Утилитный класс для работы с загружаемыми файлами"""
 
+    # Что раздаём как есть, всё остальное — бинарным потоком (защита от stored XSS)
+    MEDIA_TYPES = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".mp3": "audio/mpeg",
+        ".ogg": "audio/ogg",
+        ".wav": "audio/wav",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".zip": "application/zip",
+        ".pdf": "application/pdf",
+        ".txt": "text/plain; charset=utf-8",
+    }
+
+    @classmethod
+    def media_type_for(cls, path: Path | str) -> str:
+        """MIME-тип для отдачи файла; неизвестные и html/js расширения
+        получают application/octet-stream, браузер скачает их, а не исполнит."""
+        return cls.MEDIA_TYPES.get(Path(path).suffix.lower(), "application/octet-stream")
+
     @staticmethod
     async def save_upload_file(
         upload_file: UploadFile,

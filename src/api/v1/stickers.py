@@ -73,6 +73,5 @@ async def get_sticker(
         filename=sticker_slug,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",  # Кешируем на год
-            "Access-Control-Allow-Origin": "*",
         },
     )

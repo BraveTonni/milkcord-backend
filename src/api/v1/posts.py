@@ -29,6 +29,7 @@ from src.database.models.posts import PostFile, Post
 
 from src.utils.helpers.files import FilesHelper
 from src.utils.helpers.paths import PathHelper
+from src.core.config import settings
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
@@ -52,7 +53,7 @@ async def create_post(
     for upload_file in files:
         if not upload_file.filename:
             continue
-        if upload_file.size > 10 * 1024 * 1024:
+        if upload_file.size and upload_file.size > settings.MAX_UPLOAD_SIZE:
             await session.rollback()
             return ErrorResponse(error="Файл слишком большой")
 
@@ -112,15 +113,7 @@ async def get_file_post(
     except Exception:
         return ErrorResponse(error="Ошибка проверки пути")
 
-    mime_type = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".webp": "image/webp",
-        ".gif": "image/gif",
-        ".mp4": "video/mp4",
-        ".webm": "video/webm",
-    }.get(resolved_path.suffix.lower(), "application/octet-stream")
+    mime_type = FilesHelper.media_type_for(resolved_path)
 
     original_filename = post_file.orig_name
 
@@ -130,7 +123,6 @@ async def get_file_post(
         filename=original_filename,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
-            "Access-Control-Allow-Origin": "*",
         },
     )
 
