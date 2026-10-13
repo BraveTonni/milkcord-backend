@@ -41,7 +41,7 @@ class WSConnectionManager:
             try:
                 await connection.websocket.send_json(content)
             except Exception:
-                self.__logger.warn(
+                self.__logger.warning(
                     f"Произошла ошибка при отправке JSON клиенту {traceback.format_exc()}"
                 )
                 continue

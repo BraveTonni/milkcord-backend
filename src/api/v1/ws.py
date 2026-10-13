@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import WebSocket, WebSocketDisconnect, Depends
 
 from fastapi.routing import APIRouter
@@ -15,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(
@@ -26,6 +30,8 @@ async def websocket_endpoint(
     user = await users_crud.get_user_by_access_token(session, access_token)
 
     if not user:
+        # Клиент получает явное закрытие вместо «тихого» обрыва
+        await websocket.close(code=1008, reason="Invalid access token")
         return
 
     connection = WSConnection(
@@ -46,4 +52,10 @@ async def websocket_endpoint(
                 message=message
             )
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        # Любой сбой обработки (например, битый JSON) не должен
+        # оставлять «мёртвый» сокет в active_connections
+        logger.exception("websocket loop failed for user %s", user.id)
+    finally:
         await ws_manager.disconnect(connection)
