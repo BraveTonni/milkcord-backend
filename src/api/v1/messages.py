@@ -99,7 +99,7 @@ async def send_message(
         from_user=UserPublic.model_validate(from_user),
         to_user=UserPublic.model_validate(to_user),
         created_at=message.created_at,
-        kind=MessageKind.STICKER,
+        kind=MessageKind.TEXT,
     )
 
     return MessageResponse(message=message_info)

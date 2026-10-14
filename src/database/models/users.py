@@ -36,10 +36,10 @@ class UserBase(Base):
     cover_url: Mapped[str] = mapped_column(String(500), nullable=True)
 
     last_seen: Mapped[int] = mapped_column(
-        BigInteger, default=TimeFormatter.get_current_unix()
+        BigInteger, default=TimeFormatter.get_current_unix
     )
     created_at: Mapped[int] = mapped_column(
-        BigInteger, default=TimeFormatter.get_current_unix()
+        BigInteger, default=TimeFormatter.get_current_unix
     )
 
     posts = relationship("Post", back_populates="user", cascade="all, delete-orphan")

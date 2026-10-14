@@ -18,5 +18,5 @@ class ChatBase(Base):
     chat_type: Mapped[ChatType] = mapped_column(SAEnum(ChatType), nullable=False)
 
     created_at: Mapped[int] = mapped_column(
-        BigInteger, default=TimeFormatter.get_current_unix()
+        BigInteger, default=TimeFormatter.get_current_unix
     )

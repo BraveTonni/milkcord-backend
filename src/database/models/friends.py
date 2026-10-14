@@ -20,10 +20,10 @@ class Friend(Base):
     )
 
     updated_at: Mapped[int] = mapped_column(
-        BigInteger, default=TimeFormatter.get_current_unix()
+        BigInteger, default=TimeFormatter.get_current_unix
     )
     created_at: Mapped[int] = mapped_column(
-        BigInteger, default=TimeFormatter.get_current_unix()
+        BigInteger, default=TimeFormatter.get_current_unix
     )
 
     user = relationship(

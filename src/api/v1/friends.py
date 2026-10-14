@@ -168,6 +168,6 @@ async def get_friend_status(
     return FriendActionResponse(
         message=f"Текущий статус дружбы с {friend.username}",
         friend_id=friend.id,
-        status=relation.status,
+        status=relation.status.name,
         initiator_id=relation.initiator_id,
     )

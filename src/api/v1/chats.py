@@ -30,7 +30,7 @@ async def get_all_chats(
     users_result = await session.execute(
         select(UserBase).where(UserBase.id.in_(all_user_ids))
     )
-    users_map = {u.id: UserPublic.from_orm(u) for u in users_result.scalars().all()}
+    users_map = {u.id: UserPublic.model_validate(u) for u in users_result.scalars().all()}
 
     chat_infos = []
     for chat in chat_models:
@@ -71,7 +71,7 @@ async def get_or_create_chat(
     users_result = await session.execute(
         select(UserBase).where(UserBase.id.in_(chat.user_ids))
     )
-    users_map = {u.id: UserPublic.from_orm(u) for u in users_result.scalars().all()}
+    users_map = {u.id: UserPublic.model_validate(u) for u in users_result.scalars().all()}
 
     chat_users = [users_map[uid] for uid in chat.user_ids if uid in users_map]
     other_user = next((u for u in chat_users if u.id != current_user.id), None)
