@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     APP_PORT: int = 7000
     RELOAD: bool = False
 
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
     # CORS: comma-separated list of allowed frontend origins
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174"
 

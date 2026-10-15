@@ -1,4 +1,5 @@
 import html
+import logging
 
 from fastapi.routing import APIRouter
 
@@ -30,6 +31,8 @@ from src.utils.helpers.files import FilesHelper
 from src.utils.helpers.paths import PathHelper
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("/send")
@@ -452,8 +455,10 @@ async def delete_message(
             if file_path.exists():
                 try:
                     file_path.unlink()
-                except:
-                    pass
+                except OSError:
+                    logger.warning(
+                        "не удалось удалить файл сообщения %s", file_path, exc_info=True
+                    )
 
         await session.execute(
             delete(ChatMessageFile).where(ChatMessageFile.message_id == msg.id)
