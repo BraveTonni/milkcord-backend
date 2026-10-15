@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
+import logging
+
 from fastapi import Request, Depends, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.routing import APIRouter
@@ -25,6 +27,8 @@ from src.schemas.users import (
 from src.utils import crypto
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 IMAGE_MEDIA_TYPES = {
@@ -132,9 +136,7 @@ async def login(
         return ErrorResponse(error="Пользователь не найден")
 
     # Проверяем пароль
-    input_password = crypto.hash_password(user.password)
-
-    if input_password != existing_user.password:
+    if not crypto.verify_password(user.password, existing_user.password):
         return ErrorResponse(error="Неправильный пароль")
 
     return UserResponse(user=existing_user)
@@ -158,7 +160,7 @@ async def signup(
 
     await items_crud.update_item(session, existing_user)
 
-    print(existing_user)
+    logger.info("user registered: %s", existing_user.username)
 
     return UserResponse(user=existing_user)
 
