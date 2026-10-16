@@ -9,6 +9,7 @@ from .messages import router as messages_router
 from .stickers import router as stickers_router
 from .music import router as music_router
 from .calls import router as calls_router
+from .health import router as health_router
 
 
 def register_v1_routers(router: APIRouter) -> None:
@@ -26,5 +27,6 @@ def register_v1_routers(router: APIRouter) -> None:
     api_router.include_router(stickers_router)
     api_router.include_router(music_router)
     api_router.include_router(calls_router)
+    api_router.include_router(health_router)
 
     router.include_router(api_router)

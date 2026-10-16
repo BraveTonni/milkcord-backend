@@ -22,5 +22,14 @@ dependencies = [
     "alembic>=1.17.2",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
 [tool.flake8]
 max-line-length = 116

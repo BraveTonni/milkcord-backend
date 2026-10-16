@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -28,8 +28,7 @@ class CallModel(BaseModel):
     ended_at: datetime | None = None
     closed_by: int | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CallResponse(BaseModel):
